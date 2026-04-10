@@ -1,112 +1,110 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
-from .agents.analysis_agent import (
+
+from app.agents.analysis_agent import (
     analyze_regulation,
     analyze_ai,
     analyze_hybrid,
     summarize_text
 )
 
-# ---------------------------------------------------------
-# RESPONSE MODEL
-# ---------------------------------------------------------
-class AnalysisResponse(BaseModel):
-    input: str
-    risk_level: str
-    topics: List[str]
-    required_actions: List[str]
-    deadlines: List[str]
-    agencies: List[str]
-    notes: List[str]
-
-# ---------------------------------------------------------
-# FASTAPI APP
-# ---------------------------------------------------------
 app = FastAPI()
 
-# ---------------------------------------------------------
-# ANALYZE ENDPOINT
-# ---------------------------------------------------------
-@app.post("/analyze", response_model=AnalysisResponse)
-def analyze(text: str, mode: str = "rule"):
-    mode = mode.lower()
+# -------------------------
+# Request Model
+# -------------------------
+class TextRequest(BaseModel):
+    text: str
+    mode: str = "rule"
+
+# -------------------------
+# Root
+# -------------------------
+@app.get("/")
+def read_root():
+    return {"message": "FastAPI is working"}
+
+# -------------------------
+# Health
+# -------------------------
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+# -------------------------
+# Analyze
+# -------------------------
+@app.post("/analyze")
+def analyze(req: TextRequest):
+    mode = req.mode.lower()
 
     if mode == "rule":
-        return analyze_regulation(text)
+        return analyze_regulation(req.text)
     elif mode == "ai":
-        return analyze_ai(text)
+        return analyze_ai(req.text)
     elif mode == "hybrid":
-        return analyze_hybrid(text)
+        return analyze_hybrid(req.text)
     else:
-        return analyze_regulation(text)
+        return analyze_regulation(req.text)
 
-
-# ---------------------------------------------------------
-# EXPLAIN ENDPOINT
-# ---------------------------------------------------------
+# -------------------------
+# Explain
+# -------------------------
 @app.post("/explain")
-def explain(text: str):
-    result = analyze_ai(text)
-    narrative_notes = [n for n in result["notes"] if "AI narrative analysis" in n]
-
+def explain(req: TextRequest):
+    result = analyze_ai(req.text)
     return {
-        "input": text,
-        "explanation": narrative_notes[0] if narrative_notes else "No narrative generated."
+        "input": req.text,
+        "explanation": result["notes"][0]
     }
 
-
-# ---------------------------------------------------------
-# SUMMARIZE ENDPOINT
-# ---------------------------------------------------------
+# -------------------------
+# Summarize
+# -------------------------
 @app.post("/summarize")
-def summarize(text: str):
+def summarize(req: TextRequest):
     return {
-        "input": text,
-        "summary": summarize_text(text)
+        "input": req.text,
+        "summary": summarize_text(req.text)
     }
 
-
-# ---------------------------------------------------------
-# CLASSIFY ENDPOINT
-# ---------------------------------------------------------
+# -------------------------
+# Classify
+# -------------------------
 @app.post("/classify")
-def classify(text: str):
-    result = analyze_regulation(text)
+def classify(req: TextRequest):
+    result = analyze_regulation(req.text)
     return {
-        "input": text,
+        "input": req.text,
         "topics": result["topics"]
     }
 
-
-# ---------------------------------------------------------
-# ACTIONS ENDPOINT
-# ---------------------------------------------------------
+# -------------------------
+# Actions
+# -------------------------
 @app.post("/actions")
-def actions(text: str):
-    result = analyze_regulation(text)
+def actions(req: TextRequest):
+    result = analyze_regulation(req.text)
     return {
-        "input": text,
+        "input": req.text,
         "required_actions": result["required_actions"]
     }
 
-
-# ---------------------------------------------------------
-# DEADLINES ENDPOINT
-# ---------------------------------------------------------
+# -------------------------
+# Deadlines
+# -------------------------
 @app.post("/deadlines")
-def deadlines(text: str):
-    result = analyze_regulation(text)
+def deadlines(req: TextRequest):
+    result = analyze_regulation(req.text)
     return {
-        "input": text,
+        "input": req.text,
         "deadlines": result["deadlines"]
     }
 
-
-# ---------------------------------------------------------
-# DETECT ENDPOINT (full rule-based output)
-# ---------------------------------------------------------
+# -------------------------
+# Detect
+# -------------------------
 @app.post("/detect")
-def detect(text: str):
-    return analyze_regulation(text)
-
+def detect(req: TextRequest):
+    return analyze_regulation(req.text)
